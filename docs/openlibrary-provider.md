@@ -93,6 +93,19 @@ ambiguous.
   earliest edition date.
 - **Ratings.** These are work-level ratings from the search index (`ratings_average`, `ratings_count`).
   Editions are unrated.
+- **Metadata profile popularity.** `MinPopularity` (rating × votes, default 350) is calibrated on
+  Goodreads (*Dune*: 1.7 M votes, against 464 on Open Library). Applied as-is, it kept 2 of Frank
+  Herbert's 131 works and 0 of Tara Westover's. For Open Library books, any positive threshold
+  therefore means **"has at least one rating"** (`MetadataProfileService.BookAllowedByRating`). Unrated
+  works, which are often duplicates or junk records, are still filtered out, and unreleased books are
+  always kept. `MinPopularity = 0` keeps everything. Goodreads books are unchanged.
+
+  | Author | Works kept before | Works kept after |
+  |---|---|---|
+  | Frank Herbert | 2 / 131 | 34 / 131 |
+  | Andy Weir | 3 / 14 | 7 / 14 |
+  | Tara Westover | 0 / 1 | 1 / 1 |
+  | Brandon Sanderson | 8 / 217 | 76 / 217 |
 - **Genres.** These are Open Library subjects minus machine tags (`nyt:…`, `award:…`), lower-cased, at most 10.
 - **Search results are light.** Each hit carries a single edition. `AddBookService` fetches the full work
   when the book is added and looks the chosen edition up in it.
@@ -103,7 +116,7 @@ ambiguous.
 
 | Limitation | Impact | Possible fix |
 |---|---|---|
-| **Default metadata profile hides most books.** "Standard" requires popularity (rating × votes) ≥ 350, calibrated on Goodreads (*Dune*: 1.7 M votes). Open Library has far fewer votes (*Dune*: 464). Measured: Frank Herbert 2 of 131 works kept, Andy Weir 3 of 14, Tara Westover 0 of 1. | 🔴 New Open Library libraries look empty | Lower `MinPopularity` for Open Library books, or use another popularity signal (edition count, reading-log count). **Needs a decision.** |
+| Unrated Open Library books are hidden by any positive `MinPopularity` (see below) | 🟠 A real but unrated book needs `MinPopularity = 0` to show | Better popularity signal (edition count, reading-log count) |
 | No series | 🔴 Series pages are empty | Open Library has no series entity. Parse the edition `series` field, or use Hardcover |
 | Prolific authors are slow to add | 🟠 One request per work at 3 req/s: about 45 s for Frank Herbert (131 works) | Fetch editions lazily, or share a cache server |
 | At most 500 works per author and 5,000 editions per work | 🟢 Rare. Past the cap the most-published works are kept | — |

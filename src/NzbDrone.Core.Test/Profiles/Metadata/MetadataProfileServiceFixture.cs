@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using FizzWare.NBuilder;
+using FluentAssertions;
 using Moq;
 using NUnit.Framework;
 using NzbDrone.Core.Books;
 using NzbDrone.Core.ImportLists;
 using NzbDrone.Core.Lifecycle;
+using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Profiles.Metadata;
 using NzbDrone.Core.RootFolders;
 using NzbDrone.Core.Test.Framework;
@@ -223,6 +226,70 @@ namespace NzbDrone.Core.Test.Profiles.Metadata
             Subject.Delete(1);
 
             Mocker.GetMock<IMetadataProfileRepository>().Verify(c => c.Delete(1), Times.Once());
+        }
+
+        private List<Book> FilterWithMinPopularity(double minPopularity, params Book[] books)
+        {
+            var profile = new MetadataProfile { Id = 1, MinPopularity = minPopularity };
+
+            Mocker.GetMock<IMetadataProfileRepository>().Setup(c => c.Get(1)).Returns(profile);
+            Mocker.GetMock<IMediaFileService>().Setup(c => c.GetFilesByAuthor(It.IsAny<int>())).Returns(new List<BookFile>());
+
+            var author = new Author
+            {
+                Metadata = new AuthorMetadata { ForeignAuthorId = "OL1A" },
+                Books = books.ToList(),
+                Series = new List<Series>()
+            };
+
+            return Subject.FilterBooks(author, 1);
+        }
+
+        private static Book BookWith(string foreignId, int votes, decimal rating, DateTime? releaseDate = null)
+        {
+            return new Book
+            {
+                ForeignBookId = foreignId,
+                Title = foreignId,
+                ReleaseDate = releaseDate ?? new DateTime(2000, 1, 1),
+                Ratings = new Ratings { Votes = votes, Value = rating },
+                Editions = new List<Edition> { new Edition { ForeignEditionId = foreignId + "-e", Monitored = true } }
+            };
+        }
+
+        [Test]
+        public void open_library_books_only_need_one_rating_to_pass_a_positive_threshold()
+        {
+            // 55 votes × 4.0 = 220 popularity: below the Goodreads-calibrated default of 350.
+            var rated = BookWith("OL893516W", 55, 4.0m);
+            var unrated = BookWith("OL2W", 0, 0m);
+
+            FilterWithMinPopularity(350, rated, unrated).Should().BeEquivalentTo(new[] { rated });
+        }
+
+        [Test]
+        public void goodreads_books_still_use_the_popularity_threshold()
+        {
+            var popular = BookWith("3634639", 1000, 4.0m);
+            var niche = BookWith("123", 55, 4.0m);
+
+            FilterWithMinPopularity(350, popular, niche).Should().BeEquivalentTo(new[] { popular });
+        }
+
+        [Test]
+        public void zero_threshold_keeps_unrated_open_library_books()
+        {
+            var unrated = BookWith("OL2W", 0, 0m);
+
+            FilterWithMinPopularity(0, unrated).Should().BeEquivalentTo(new[] { unrated });
+        }
+
+        [Test]
+        public void unreleased_open_library_books_are_kept_without_ratings()
+        {
+            var upcoming = BookWith("OL3W", 0, 0m, DateTime.UtcNow.AddMonths(6));
+
+            FilterWithMinPopularity(350, upcoming).Should().BeEquivalentTo(new[] { upcoming });
         }
     }
 }

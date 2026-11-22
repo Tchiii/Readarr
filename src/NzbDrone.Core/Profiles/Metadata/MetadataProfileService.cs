@@ -10,6 +10,7 @@ using NzbDrone.Core.ImportLists;
 using NzbDrone.Core.Lifecycle;
 using NzbDrone.Core.MediaFiles;
 using NzbDrone.Core.Messaging.Events;
+using NzbDrone.Core.MetadataSource.OpenLibrary;
 using NzbDrone.Core.Profiles.Releases;
 using NzbDrone.Core.RootFolders;
 
@@ -207,7 +208,22 @@ namespace NzbDrone.Core.Profiles.Metadata
                 return false;
             }
 
-            return (b.Ratings.Popularity >= p.MinPopularity) || b.ReleaseDate > DateTime.UtcNow;
+            if (b.ReleaseDate > DateTime.UtcNow)
+            {
+                return true;
+            }
+
+            // MinPopularity (rating × votes) is calibrated on Goodreads vote counts: Dune has ~1.7M votes
+            // there but only a few hundred on Open Library, so the default threshold (350) would hide almost
+            // every Open Library book. For Open Library books any positive threshold means "has at least one
+            // rating", which still filters out the many unrated duplicate/junk works Open Library contains.
+            // A threshold of 0 keeps everything, as before.
+            if (OpenLibraryIds.IsWorkId(b.ForeignBookId) && p.MinPopularity > 0)
+            {
+                return b.Ratings.Votes > 0;
+            }
+
+            return b.Ratings.Popularity >= p.MinPopularity;
         }
 
         private bool IsPartOrSet(Book book, List<SeriesBookLink> seriesLinks, HashSet<string> titles)
