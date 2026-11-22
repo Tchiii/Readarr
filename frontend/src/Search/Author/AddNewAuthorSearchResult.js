@@ -9,6 +9,7 @@ import Link from 'Components/Link/Link';
 import { icons, kinds, sizes } from 'Helpers/Props';
 import dimensions from 'Styles/Variables/dimensions';
 import fonts from 'Styles/Variables/fonts';
+import { getAuthorUrl } from 'Utilities/Book/metadataUrls';
 import stripHtml from 'Utilities/String/stripHtml';
 import translate from 'Utilities/String/translate';
 import AddNewAuthorModal from './AddNewAuthorModal';
@@ -148,7 +149,7 @@ class AddNewAuthorSearchResult extends Component {
 
                 <Link
                   className={styles.mbLink}
-                  to={`https://goodreads.com/author/show/${foreignAuthorId}`}
+                  to={getAuthorUrl(foreignAuthorId)}
                   onPress={this.onMBLinkPress}
                 >
                   <Icon

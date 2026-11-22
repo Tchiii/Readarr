@@ -10,6 +10,7 @@ import Link from 'Components/Link/Link';
 import { icons, sizes } from 'Helpers/Props';
 import dimensions from 'Styles/Variables/dimensions';
 import fonts from 'Styles/Variables/fonts';
+import { getEditionUrl } from 'Utilities/Book/metadataUrls';
 import stripHtml from 'Utilities/String/stripHtml';
 import translate from 'Utilities/String/translate';
 import AddNewBookModal from './AddNewBookModal';
@@ -142,7 +143,7 @@ class AddNewBookSearchResult extends Component {
                   editions && editions.length > 1 ?
                     <Link
                       className={styles.mbLink}
-                      to={`https://goodreads.com/book/show/${editions[0].foreignEditionId}`}
+                      to={getEditionUrl(editions[0].foreignEditionId)}
                       onPress={this.onTVDBLinkPress}
                     >
                       <Icon
