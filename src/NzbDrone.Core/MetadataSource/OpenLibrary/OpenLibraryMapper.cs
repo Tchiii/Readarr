@@ -100,7 +100,7 @@ namespace NzbDrone.Core.MetadataSource.OpenLibrary
                 PageCount = resource.NumberOfPages ?? 0,
                 ReleaseDate = OpenLibraryValues.ParseDate(resource.PublishDate),
 
-                // Open Library only rates works, not editions.
+                // Open Library only rates works; MapBook copies the work rating onto every edition.
                 Ratings = new Ratings { Votes = 0, Value = 0 }
             };
 
@@ -246,12 +246,36 @@ namespace NzbDrone.Core.MetadataSource.OpenLibrary
 
             book.CleanTitle = Parser.Parser.CleanAuthorName(book.Title);
 
+            // Readarr displays a book's rating from its selected edition (BookResource), because Goodreads
+            // rated each edition. Open Library only rates works, so every edition carries the work's rating;
+            // otherwise the UI would show 0 everywhere. All editions being equal, this has no effect on which
+            // edition is preferred (EditionScore ignores ratings).
+            foreach (var edition in editions)
+            {
+                edition.Ratings = new Ratings { Votes = book.Ratings.Votes, Value = book.Ratings.Value };
+            }
+
             // Prefer the work's own first-publication date; otherwise the earliest edition we know of.
             book.ReleaseDate = firstPublished ?? editions.Where(x => x.ReleaseDate.HasValue).Select(x => x.ReleaseDate).Min();
 
             book.Links.Add(new Links { Url = $"{SiteUrl}/works/{workId}", Name = LinkName });
 
             return book;
+        }
+
+        /// <summary>
+        /// Open Library does not rate authors; Goodreads did. Use the vote-weighted average of the author's
+        /// books instead. Returns 0 votes when no book is rated, which AuthorMetadata.UseMetadataFrom treats as
+        /// "keep the existing rating", so a refresh without the book list never wipes it.
+        /// </summary>
+        public static Ratings AggregateRatings(IEnumerable<Book> books)
+        {
+            var rated = books.Where(x => x.Ratings.Votes > 0).ToList();
+            var votes = rated.Sum(x => x.Ratings.Votes);
+
+            return votes == 0
+                ? new Ratings { Votes = 0, Value = 0 }
+                : new Ratings { Votes = votes, Value = rated.Sum(x => x.Ratings.Votes * x.Ratings.Value) / votes };
         }
 
         /// <summary>

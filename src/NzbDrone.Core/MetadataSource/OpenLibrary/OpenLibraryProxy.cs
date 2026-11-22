@@ -152,6 +152,8 @@ namespace NzbDrone.Core.MetadataSource.OpenLibrary
                 books.Add(book);
             }
 
+            metadata.Ratings = OpenLibraryMapper.AggregateRatings(books);
+
             _logger.Debug("Open Library author {0} ({1}): {2} books", metadata.Name, resolvedId, books.Count);
 
             return new Author

@@ -198,6 +198,9 @@ namespace NzbDrone.Core.Test.MetadataSource.OpenLibrary
             book.SeriesLinks.Value.Should().BeEmpty();
             book.Links.Should().ContainSingle(x => x.Url == "https://openlibrary.org/works/OL893414W");
 
+            // The UI shows the selected edition's rating, so editions carry the work rating.
+            book.Editions.Value.Should().OnlyContain(x => x.Ratings.Votes == 464 && x.Ratings.Value == 4.3m);
+
             // Duplicated edition IDs are collapsed, and the earliest edition date is used as a fallback.
             book.Editions.Value.Should().HaveCount(2);
             book.Editions.Value.Should().ContainSingle(x => x.Monitored);
@@ -222,6 +225,28 @@ namespace NzbDrone.Core.Test.MetadataSource.OpenLibrary
             var editions = new List<Edition> { new Edition { ForeignEditionId = "OL1M", Title = "Edition title" } };
 
             OpenLibraryMapper.MapBook("OL1W", null, null, null, null, null, editions).Title.Should().Be("Edition title");
+        }
+
+        [Test]
+        public void should_aggregate_author_rating_from_rated_books()
+        {
+            var books = new[]
+            {
+                new Book { Ratings = new Ratings { Votes = 300, Value = 4.0m } },
+                new Book { Ratings = new Ratings { Votes = 100, Value = 3.0m } },
+                new Book { Ratings = new Ratings { Votes = 0, Value = 0m } }
+            };
+
+            var rating = OpenLibraryMapper.AggregateRatings(books);
+
+            rating.Votes.Should().Be(400);
+            rating.Value.Should().Be(3.75m);
+        }
+
+        [Test]
+        public void should_report_no_votes_when_no_book_is_rated()
+        {
+            OpenLibraryMapper.AggregateRatings(new[] { new Book() }).Votes.Should().Be(0);
         }
 
         [Test]
