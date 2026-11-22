@@ -23,7 +23,26 @@ using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace NzbDrone.Core.MetadataSource.BookInfo
 {
-    public class BookInfoProxy : IProvideAuthorInfo, IProvideBookInfo, ISearchForNewBook, ISearchForNewAuthor, ISearchForNewEntity
+    /// <summary>
+    /// BookInfo (Goodreads-ID based) metadata provider: the original api.bookinfo.club, or any compatible
+    /// server set in Settings → Development → Metadata Source (e.g. rreading-glasses).
+    /// It deliberately does NOT implement Readarr's public metadata interfaces: those are implemented once,
+    /// by <see cref="MetadataSourceRouter"/>, so dependency injection never has to choose between providers.
+    /// </summary>
+    public interface IBookInfoProxy
+    {
+        Author GetAuthorInfo(string foreignAuthorId, bool useCache = true);
+        HashSet<string> GetChangedAuthors(DateTime startTime);
+        Tuple<string, Book, List<AuthorMetadata>> GetBookInfo(string foreignBookId);
+        List<Book> SearchForNewBook(string title, string author, bool getAllEditions = true);
+        List<Book> SearchByIsbn(string isbn);
+        List<Book> SearchByAsin(string asin);
+        List<Book> SearchByGoodreadsBookId(int id, bool getAllEditions);
+        List<Author> SearchForNewAuthor(string title);
+        List<object> SearchForNewEntity(string title);
+    }
+
+    public class BookInfoProxy : IBookInfoProxy
     {
         private static readonly JsonSerializerOptions SerializerSettings = new JsonSerializerOptions
         {

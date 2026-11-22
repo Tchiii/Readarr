@@ -57,8 +57,11 @@ namespace NzbDrone.Core.Test.MediaFiles.BookImport.Identification
             Mocker.SetConstant<IMediaFileService>(Mocker.Resolve<MediaFileService>());
 
             Mocker.SetConstant<IConfigService>(Mocker.Resolve<IConfigService>());
-            Mocker.SetConstant<IProvideAuthorInfo>(Mocker.Resolve<BookInfoProxy>());
-            Mocker.SetConstant<IProvideBookInfo>(Mocker.Resolve<BookInfoProxy>());
+
+            // These cases use Goodreads IDs, which MetadataSourceRouter sends to BookInfo.
+            Mocker.SetConstant<IBookInfoProxy>(Mocker.Resolve<BookInfoProxy>());
+            Mocker.SetConstant<IProvideAuthorInfo>(Mocker.Resolve<MetadataSourceRouter>());
+            Mocker.SetConstant<IProvideBookInfo>(Mocker.Resolve<MetadataSourceRouter>());
 
             _addAuthorService = Mocker.Resolve<AddAuthorService>();
 
