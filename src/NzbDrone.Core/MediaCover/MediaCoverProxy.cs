@@ -62,9 +62,20 @@ namespace NzbDrone.Core.MediaCover
         {
             var url = GetUrl(hash);
 
-            var request = new HttpRequest(url);
+            // Cover hosts may redirect (Open Library serves older covers from archive.org). Without this the
+            // redirect response itself, with an empty body, was returned and the UI showed a placeholder.
+            // Library covers already follow redirects (HttpClient.DownloadFileAsync).
+            var request = new HttpRequest(url)
+            {
+                AllowAutoRedirect = true,
+                SuppressHttpError = true
+            };
 
-            return _httpClient.Get(request).ResponseData;
+            var response = _httpClient.Get(request);
+
+            // A missing image (e.g. an Open Library author without a photo) is a normal case:
+            // return null so the caller answers 404 instead of logging a fatal error.
+            return response.HasHttpError ? null : response.ResponseData;
         }
     }
 }
