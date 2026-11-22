@@ -120,6 +120,62 @@ ambiguous.
 - **Goodreads IDs in search.** `edition:{digits}` is looked up through Open Library's `id_goodreads`
   (old editions only). `author:{digits}` and `work:{digits}` cannot be mapped and return nothing.
 
+## Migrating a Goodreads library
+
+The `MigrateToOpenLibrary` command moves Goodreads-ID entries to Open Library IDs. It is a **dry run by
+default**: it only writes a report.
+
+```
+POST /api/v1/command  {"name": "MigrateToOpenLibrary"}                  # dry run: report only
+POST /api/v1/command  {"name": "MigrateToOpenLibrary", "apply": true}   # change the database
+```
+
+The report is written to the app data folder as `openlibrary-migration-<timestamp>[-dryrun].json`. It
+lists every author, book and edition with the old ID, the new ID, how each was matched and, for anything
+left unchanged, why.
+
+### How entries are matched
+
+From most to least reliable (`OpenLibraryMigrationPlanner`):
+
+1. **Books by ISBN.** Up to 3 ISBNs per book are looked up, starting with editions that have files. Each
+   hit votes for the Open Library author whose name matches.
+2. **Author.** The author with the most votes wins. Without votes, the author must have exactly the same
+   normalised name (accents, case, punctuation and word order ignored; the record with most works wins).
+3. **Remaining books by title** among the author's own works (primary author only). Titles are compared
+   without trailing series parentheses or subtitles. When several works share a title, the most published
+   one that is not yet taken wins.
+4. **Editions with files, and the monitored edition**, by ISBN first (across all editions, so a fallback
+   never takes another edition's exact match), otherwise the best remaining edition. A book whose
+   file-carrying edition cannot be mapped is **not migrated**, so no file is ever orphaned.
+
+Matching is deliberately strict: an uncertain entry keeps its Goodreads ID, because a wrong match would
+attach the wrong metadata to someone's files.
+
+### What applying does
+
+- Rewrites `ForeignAuthorId`, `ForeignBookId` and `ForeignEditionId` **in place**. The database rows stay
+  the same, so files, history, monitoring, tags and profiles stay attached.
+- Queues a `RefreshAuthor` for each migrated author to pull Open Library's metadata. That refresh replaces
+  the unmapped Goodreads editions with Open Library's, and **removes unmatched books that have no files**,
+  like any book that disappears from the metadata. Unmatched books with files are kept.
+- Authors already on Open Library IDs are skipped, so the command can be run again, for example after
+  Open Library was unreachable for some authors.
+- Conflicts are reported and left alone: an Open Library author or work that is already in the library,
+  or two local books mapping to the same work.
+
+### Test on a simulated Goodreads library
+
+A copy of a real library (3 authors, 11 books, 125 editions) had all its IDs replaced with numeric
+Goodreads-style ones and all of Alain Damasio's ISBNs removed. A fake file was attached to an
+unmonitored edition with no ISBN, and another to a monitored edition. Applying the migration in the
+running app gave:
+
+- 3/3 authors and **11/11 books back on their exact original Open Library IDs**, with 0 wrong matches.
+  Damasio was matched by name and title, the others by ISBN.
+- Both files still attached to their (same) edition rows, which now carry valid Open Library IDs.
+- After the refresh, no edition left on a numeric ID, and no errors in the log.
+
 ## Known limitations
 
 | Limitation | Impact | Possible fix |
@@ -129,7 +185,7 @@ ambiguous.
 | Prolific authors are slow to add | 🟠 One request per work at 3 req/s: about 45 s for Frank Herbert (131 works) | Fetch editions lazily, or share a cache server |
 | At most 500 works per author and 5,000 editions per work | 🟢 Rare. Past the cap the most-published works are kept | — |
 | Mixed library + custom Metadata Source: Open Library authors are not in the BookInfo "changed" feed | 🟢 They are only refreshed manually in that setup | Merge both strategies in the router |
-| No migration of existing Goodreads libraries yet | 🟠 Existing entries stay on BookInfo | Migration tool: ISBN, then title + author matching |
+| Migration only matches what Open Library knows | 🟠 Unmatched books stay on Goodreads IDs; those without files are removed at the next refresh | Check the dry-run report first; add missing data to Open Library |
 
 ## Tests
 
