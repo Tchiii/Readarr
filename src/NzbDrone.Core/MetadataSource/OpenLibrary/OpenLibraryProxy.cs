@@ -30,6 +30,12 @@ namespace NzbDrone.Core.MetadataSource.OpenLibrary
         List<Book> SearchByIsbn(string isbn);
         List<Book> SearchByAsin(string asin);
         List<Book> SearchByGoodreadsBookId(int goodreadsId, bool getAllEditions);
+
+        // Raw lookups used by the Goodreads → Open Library migration (OpenLibraryMigrationService).
+        List<OpenLibraryAuthorSearchDoc> SearchAuthors(string name);
+        List<OpenLibrarySearchDoc> SearchWorks(string query, int limit);
+        List<OpenLibrarySearchDoc> GetAuthorWorkDocs(string authorId);
+        List<OpenLibraryEdition> GetWorkEditions(string workId);
     }
 
     public class OpenLibraryProxy : IOpenLibraryProxy
@@ -164,6 +170,30 @@ namespace NzbDrone.Core.MetadataSource.OpenLibrary
                 Series = new List<Series>()
             };
         }
+
+        public List<OpenLibraryAuthorSearchDoc> SearchAuthors(string name)
+        {
+            var result = GetJson<OpenLibraryAuthorSearchResult>("search/authors.json", b => b
+                .AddQueryParam("q", name)
+                .AddQueryParam("fields", "key,name,alternate_names,work_count")
+                .AddQueryParam("limit", 10));
+
+            return result?.Docs ?? new List<OpenLibraryAuthorSearchDoc>();
+        }
+
+        public List<OpenLibrarySearchDoc> SearchWorks(string query, int limit)
+        {
+            var result = GetJson<OpenLibrarySearchResult>("search.json", b => b
+                .AddQueryParam("q", query)
+                .AddQueryParam("fields", WorkFields)
+                .AddQueryParam("limit", limit));
+
+            return result?.Docs ?? new List<OpenLibrarySearchDoc>();
+        }
+
+        public List<OpenLibrarySearchDoc> GetAuthorWorkDocs(string authorId) => GetAuthorWorks(authorId);
+
+        public List<OpenLibraryEdition> GetWorkEditions(string workId) => GetEditions(workId);
 
         /// <summary>All works whose author list contains the author, most published first.</summary>
         private List<OpenLibrarySearchDoc> GetAuthorWorks(string authorId)

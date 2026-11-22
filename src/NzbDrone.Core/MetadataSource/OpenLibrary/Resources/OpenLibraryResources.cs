@@ -223,6 +223,29 @@ namespace NzbDrone.Core.MetadataSource.OpenLibrary.Resources
         public List<OpenLibrarySearchEditionDoc> Docs { get; set; }
     }
 
+    /// <summary><c>GET /search/authors.json</c></summary>
+    public class OpenLibraryAuthorSearchResult
+    {
+        [JsonPropertyName("docs")]
+        public List<OpenLibraryAuthorSearchDoc> Docs { get; set; }
+    }
+
+    public class OpenLibraryAuthorSearchDoc
+    {
+        /// <summary>Bare ID (e.g. <c>OL79034A</c>): unlike other search APIs, author search omits the /authors/ prefix.</summary>
+        [JsonPropertyName("key")]
+        public string Key { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+
+        [JsonPropertyName("alternate_names")]
+        public List<string> AlternateNames { get; set; }
+
+        [JsonPropertyName("work_count")]
+        public int WorkCount { get; set; }
+    }
+
     /// <summary>An edition embedded in a search doc. Unlike the edition API, most fields are arrays here.</summary>
     public class OpenLibrarySearchEditionDoc
     {
