@@ -1,5 +1,8 @@
 # Metadata API contract (BookInfo)
 
+> Readarr can now also use Open Library directly, without any metadata server.
+> See [openlibrary-provider.md](openlibrary-provider.md).
+
 This document describes the HTTP contract that Readarr expects from its metadata server.
 The official server (`https://api.bookinfo.club/v1/`) is offline, so any replacement must
 implement exactly this contract for Readarr to work without code changes.
