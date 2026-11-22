@@ -92,7 +92,15 @@ ambiguous.
   1 January, like Goodreads did. A book's date is the work's `first_publish_year`, otherwise its
   earliest edition date.
 - **Ratings.** These are work-level ratings from the search index (`ratings_average`, `ratings_count`).
-  Editions are unrated.
+  Readarr displays a book's rating from its selected edition, because Goodreads rated each edition, so every
+  edition carries its work's rating. Without that, the UI showed 0 everywhere. The author rating is the
+  vote-weighted average of their books, since Open Library does not rate authors.
+- **Covers.** Covers come from `covers.openlibrary.org`. Older covers redirect to archive.org, which
+  Readarr's search-result cover proxy did not follow, so it returned an empty image. It now follows
+  redirects (`MediaCoverProxy`) and answers 404 for missing images (authors without a photo) instead of
+  logging a fatal error.
+- **Languages.** Edition languages are ISO 639-2 codes (`eng`, `fre`, …). The default metadata profile
+  only allows `eng, null`, so non-English users must add their language (e.g. `fre`) to keep those editions.
 - **Metadata profile popularity.** `MinPopularity` (rating × votes, default 350) is calibrated on
   Goodreads (*Dune*: 1.7 M votes, against 464 on Open Library). Applied as-is, it kept 2 of Frank
   Herbert's 131 works and 0 of Tara Westover's. For Open Library books, any positive threshold
@@ -124,6 +132,13 @@ ambiguous.
 | No migration of existing Goodreads libraries yet | 🟠 Existing entries stay on BookInfo | Migration tool: ISBN, then title + author matching |
 
 ## Tests
+
+Checked end to end in the running app (search, add author, add a single book, refresh, author and
+search pages in a browser) with Tara Westover, Andy Weir (6 books in 12 s: the real bibliography,
+no junk) and Alain Damasio.
+
+Open Library data quality is uneven. Some works are duplicated (e.g. "La Zone du Dehors" and
+"La Zone Du Dehors (French Edition)" are two separate works), and dates are often only a year.
 
 - `OpenLibraryValuesFixture`, `OpenLibraryMapperFixture`, `MetadataSourceRouterFixture`: unit tests, no network.
 - `OpenLibraryProxyFixture`: `[IntegrationTest]`, talks to the real openlibrary.org:
